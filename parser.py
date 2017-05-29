@@ -8,16 +8,11 @@ from time import sleep
 import diary
 import sheduler
 
-def task_do():
-    print('task do called')
+def get_posts(begin, end):
+    api = diary.api.new(None)
+    #return api.posts()
+    return sheduler.task.new('posts_list', None)
 
-def task_done(result):
-    print('task done called')
-    print('result: {}'.format(result))
-
-def task_failed(result):
-    print('task failed called')
-    print('result: {}'.format(result))
 
 def main():
     parser = argparse.ArgumentParser(description='diar.ru post parser')
@@ -35,24 +30,17 @@ def main():
         print ('can\'t load config file, path: {}'.format(args.config))
         sys.exit(-1)
 
-    api = diary.api.new(config)
-    if not api.auth():
-        sys.exit(-1)
+    #api = diary.api.new(config)
+    #if not api.auth():
+        #sys.exit(-1)
+    #api.posts()
 
-    api.posts()
+    s = sheduler.sheduler.new(4, sheduler.queue.new(1))
 
-
-    #s = sheduler.sheduler(4)
-    #s.run()
-
+    #s.add_task(get_posts(begin, end))
     #s.add_task(task_do, task_done, task_failed)
 
-    #s.stop()
-
-    #if args.session is not None:
-        #get_posts(sid=args.session, begin=args.begin, end=args.end)
-    #else:
-        #get_posts(sid=get_session(user=args.user, password=args.password, apikey=args.apikey), begin=args.begin, end=args.end)
+    s.run()
 
 if __name__ == '__main__':
     main()
