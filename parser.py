@@ -1,18 +1,40 @@
-import os
-import sys
+import signal, os
+
 import argparse
 import configparser
 
 import diary
 import sheduler
 
-def get_posts():
-    print('get_posts called')
-    # api = diary.api.new(None)
-    #return api.posts()
-    # return sheduler.task.new('posts_list', None)
-    return "asdasd"
+from time import sleep
 
+#def get_posts():
+    #print('get_posts called')
+    ## api = diary.api.new(None)
+    ##return api.posts()
+    ## return sheduler.task.new('posts_list', None)
+    #return "asdasd"
+
+
+def fast_handler():
+    print('fast_handler')
+    return Long()
+
+def sleep_handler():
+    print('sleep_handler')
+    sleep(3)
+    return Long()
+
+def long_handler():
+    print('long_handler')
+    a = 2
+    for j in range(0, 100000):
+        a += 1
+    return Fast()
+
+class Long(): pass
+class Sleep(): pass
+class Fast(): pass
 
 def main():
     parser = argparse.ArgumentParser(description='diar.ru post parser')
@@ -35,11 +57,22 @@ def main():
         #sys.exit(-1)
     #api.posts()
 
-    s = sheduler.mnager.new(4, sheduler.task_queue.new(1))
-    # s = sheduler.sheduler.new(4, sheduler.queue.new(1))
+    #d = {
+        #'fast': fast_handler,
+        #'sleep': sleep_handler,
+        #'long': long_handler,
+    #}
 
-    s.add_task(get_posts)
-    #s.add_task(task_do, task_done, task_failed)
+    d = {
+        Fast: fast_handler,
+        Sleep: sleep_handler,
+        Long: long_handler,
+    }
+
+    s = sheduler.mnager.new(4, sheduler.task_queue.new(1), d)
+
+    s.add_task(Fast())
+    #s.add_task('fast')
 
     s.run()
 
