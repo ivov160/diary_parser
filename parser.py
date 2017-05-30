@@ -3,15 +3,15 @@ import sys
 import argparse
 import configparser
 
-from time import sleep
-
 import diary
 import sheduler
 
-def get_posts(begin, end):
-    api = diary.api.new(None)
+def get_posts():
+    print('get_posts called')
+    # api = diary.api.new(None)
     #return api.posts()
-    return sheduler.task.new('posts_list', None)
+    # return sheduler.task.new('posts_list', None)
+    return "asdasd"
 
 
 def main():
@@ -35,9 +35,10 @@ def main():
         #sys.exit(-1)
     #api.posts()
 
-    s = sheduler.sheduler.new(4, sheduler.queue.new(1))
+    s = sheduler.mnager.new(4, sheduler.task_queue.new(1))
+    # s = sheduler.sheduler.new(4, sheduler.queue.new(1))
 
-    #s.add_task(get_posts(begin, end))
+    s.add_task(get_posts)
     #s.add_task(task_do, task_done, task_failed)
 
     s.run()
