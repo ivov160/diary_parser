@@ -35,14 +35,19 @@ class html:
         return etree.fromstring(data, parser=parser)
         # return BeautifulSoup(data, "lxml")
 
-    def get_diary_list(self, offset, begin, end):
-        url_template = 'http://www.diary.ru/list/?&sort=last_post&ord=desc&from={}'
+    def get_diary_list(self, offset):
+        url_template = 'http://www.diary.ru/list/?from={}'
 
         response = self.load_url(url_template.format(offset))
         parser = self.get_parser(response.text)
 
-        for link in parser.xpath("//a[contains(@class, 'withfloat')]/@href"):
-            print('found link: {}'.format(link))
+        links = parser.xpath("//td[contains(@class, 'l')]/a[contains(@class, 'withfloat')]/@href")
+        link = parser.xpath("concat('http://www.diary.ru', string(//div[contains(@class, 'pages')]//tr[contains(@class, 'pages_str')]//td[2]/a/@href))")
+
+        return {
+            'links': links,
+            'next': link
+        }
 
 def new(config):
     return html(config) 

@@ -47,8 +47,8 @@ class manager:
 
     @staticmethod
     def task_handler(task,  dispatcher):
-        #print('task_handler, result: {}'.format(task))
-        return dispatcher[task.__class__]()
+        print('task_handler, result: {}'.format(task))
+        return dispatcher[task.__class__](task)
 
     @staticmethod
     def pool_callback_wrapper(method):
@@ -60,11 +60,13 @@ class manager:
     def task_done(self, result):
         #print('task_done, result: {}'.format(result))
         self.__in_progress -= 1
-        self.add_task(result)
+
+        for task in result:
+            print('task: {}'.format(task))
+            self.add_task(task)
 
     def task_error(self, result):
-        #print('task_error called')
-        #print('result: {}'.format(result))
+        print('task_error, result: {}'.format(result))
         self.__in_progress -= 1
         
 def new(pool_size, queue, dispatcher):

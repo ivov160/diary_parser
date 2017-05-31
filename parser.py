@@ -8,43 +8,50 @@ import diary
 import sheduler
 
 from time import sleep
-
-#def get_posts():
-    #print('get_posts called')
-    ## api = diary.api.new(None)
-    ##return api.posts()
-    ## return sheduler.task.new('posts_list', None)
-    #return "asdasd"
-
-
-def fast_handler():
-    print('fast_handler')
-    return Long()
-
-def sleep_handler():
-    print('sleep_handler')
-    sleep(3)
-    return Long()
-
-def long_handler():
-    print('long_handler')
-    a = 2
-    for j in range(0, 100000):
-        a += 1
-    return Fast()
-
-class Long(): pass
-class Sleep(): pass
-class Fast(): pass
+from urllib.parse import urlparse
+from urllib import parse
 
 class diary_list_task():
-    def __init__(self, offset, begin, end):
+    def __init__(self, offset):
         self.offset = offset
+
+    def __str__(self):
+        return 'diary_list_task [ offset: {} ]'.format(self.offset)
+
+class diary_posts_task():
+    def __init__(self, url, begin, end):
+        self.url = url
         self.begin = begin
         self.end = end
 
-# def diary_list_task_handler(task):
-    
+        u = urlparse(url)
+        domain = u.hostname
+        self.short_name = domain[:domain.find('.diary.ru')]
+
+    def __str__(self):
+        return 'diary_posts_task [ url: {}, begin: {}, end: {}, short_name: {} ]'.format(
+            self.url, self.begin, self.end, self.short_name)
+
+
+def diary_list_task_handler(task):
+    h = diary.html.new(None)
+    data = h.get_diary_list(task.offset)
+
+    tasks = []
+    if data['next']:
+        url = urlparse(data['next'])
+        query = parse.parse_qs(url.query)
+        if query.get('from'):
+            tasks.append(diary_list_task(query['from'][0]))
+
+    #for link in data['links']:
+        #tasks.append(diary_posts_task(link, 0, 0))
+
+    return tasks
+
+def diary_posts_task_handler(task):
+    api = diary.api.new(None)
+    data = h.get_diary_list(task.offset)
 
 def main():
     parser = argparse.ArgumentParser(description='diar.ru post parser')
@@ -67,27 +74,13 @@ def main():
         #sys.exit(-1)
     #api.posts()
 
-    #d = {
-        #'fast': fast_handler,
-        #'sleep': sleep_handler,
-        #'long': long_handler,
-    #}
+    dispatcher = {
+        diary_list_task: diary_list_task_handler,
+    }
 
-    # d = {
-        # Fast: fast_handler,
-        # Sleep: sleep_handler,
-        # Long: long_handler,
-    # }
-
-    # s = sheduler.mnager.new(4, sheduler.task_queue.new(1), d)
-
-    # s.add_task(Fast())
-    # #s.add_task('fast')
-
-    # s.run()
-
-    t = diary.html.new(None)
-    t.get_diary_list(0, 3, 4)
+    s = sheduler.mnager.new(4, sheduler.task_queue.new(1), dispatcher)
+    s.add_task(diary_list_task(0))
+    s.run()
 
 if __name__ == '__main__':
     main()
