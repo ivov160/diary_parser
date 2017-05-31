@@ -34,7 +34,6 @@ class api:
        print('failed get sid, code: {}, msg: {}'.format(code, response['error']))
        return False
 
-
     def posts(self):
        params = {
            'method': 'post.get',

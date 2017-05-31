@@ -2,6 +2,7 @@ import signal, os
 
 import argparse
 import configparser
+import datetime
 
 import diary
 import sheduler
@@ -36,6 +37,15 @@ class Long(): pass
 class Sleep(): pass
 class Fast(): pass
 
+class diary_list_task():
+    def __init__(self, offset, begin, end):
+        self.offset = offset
+        self.begin = begin
+        self.end = end
+
+# def diary_list_task_handler(task):
+    
+
 def main():
     parser = argparse.ArgumentParser(description='diar.ru post parser')
     parser.add_argument('-c', '--config', required=True, help='path to config file')
@@ -63,18 +73,21 @@ def main():
         #'long': long_handler,
     #}
 
-    d = {
-        Fast: fast_handler,
-        Sleep: sleep_handler,
-        Long: long_handler,
-    }
+    # d = {
+        # Fast: fast_handler,
+        # Sleep: sleep_handler,
+        # Long: long_handler,
+    # }
 
-    s = sheduler.mnager.new(4, sheduler.task_queue.new(1), d)
+    # s = sheduler.mnager.new(4, sheduler.task_queue.new(1), d)
 
-    s.add_task(Fast())
-    #s.add_task('fast')
+    # s.add_task(Fast())
+    # #s.add_task('fast')
 
-    s.run()
+    # s.run()
+
+    t = diary.html.new(None)
+    t.get_diary_list(0, 3, 4)
 
 if __name__ == '__main__':
     main()
