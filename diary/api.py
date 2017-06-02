@@ -1,54 +1,87 @@
 import os
 import requests
 import hashlib
+import datetime
+
+class credentials():
+    def __init__(self, username, password, public_key, secret_key):
+        self.username = username
+        self.password = password
+        self.public_key = public_key
+        self.secret_key = secret_key
+
+class session():
+    def __init__(self, sid, expired=datetime.datetime.now()):
+        self.sid = sid
+        self.expired = expired
+
+        self.touch()
+
+    def is_expired(self):
+        return self.expired <= datetime.datetime.now()
+
+    def touch(self):
+        self.expired = datetime.datetime.now() + datetime.timedelta(minutes=20)
+
+    def __str__(self):
+        return 'api.session [ sid: {}, expired: {} ]'.format(self.sid, self.expired.timestamp())
 
 class api:
-    def __init__(self, config):
-        self.username = config['account']['username']
-        self.password = config['account']['password']
-        self.secret_key = config['api']['secret_key']
-        self.public_key = config['api']['public_key']
-        self.endpoint = config['api']['endpoint']
-        self.sid = None
+    endpoint = 'http://www.diary.ru/api/'
 
-    def auth(self):
-       md5 = hashlib.md5()
-       md5.update(self.secret_key.encode())
-       md5.update(self.password.encode())
+    @staticmethod
+    def auth(c):
+        md5 = hashlib.md5()
+        md5.update(c.secret_key.encode())
+        md5.update(c.password.encode())
 
-       params = {
-           'method': 'user.auth',
-           'username': self.username,
-           'password': md5.hexdigest(),
-           'appkey': self.public_key
-       }
+        params = {
+            'method': 'user.auth',
+            'username': c.username,
+            'password': md5.hexdigest(),
+            'appkey': c.public_key
+        }
 
-       r = requests.get(self.endpoint, params)
-       response = r.json()
+        r = requests.get(api.endpoint, params).json()
+        code = api.get_code(r)
 
-       code = int(response['result'])
-       if code == 0:
-           self.sid = response['sid']
-           return True
+        if code != 0:
+            raise RuntimeError('failed get sid, code: {}, msg: {}'.format(code, r['error']))
 
-       print('failed get sid, code: {}, msg: {}'.format(code, response['error']))
-       return False
+        return session(r['sid'])
 
-    def posts(self):
-       params = {
-           'method': 'post.get',
-           'sid': self.sid,
-           'type': 'diary',
-           'shortname': 'sd-nek',
-           #'juserid': '3349986',
-           'fields': 'postid,title,juserid,jaccess,dateline_cdate,message_html'
-       }
+    @staticmethod
+    def posts(sid, user_id, offset=0):
+        if sid.is_expired():
+            raise RuntimeError('sid is expired, sid: {}'.format(sid.expired))
 
-       r = requests.get(self.endpoint, params)
-       response = r.text
-    
-       print(response)
-       #print('{}'.format(response))
+        params = {
+            'method': 'post.get',
+            'sid': sid.sid,
+            'type': 'diary',
+            'juserid': user_id,
+            'from': offset,
+            'fields': 'postid,title,juserid,jaccess,dateline_date,message_html'
+        }
+        r = requests.get(api.endpoint, params)
 
-def new(config):
-    return api(config) 
+        sid.touch()
+        return r.json()
+
+    @staticmethod
+    def get_code(r):
+        code = None
+        if r and r['result']:
+            code = int(r['result']) 
+        return code
+
+        #r = requests.get(self.endpoint, params)
+        #response = r.json()
+        ##response = r.text
+
+        #return response
+        #print(response)
+        #print('{}'.format(response))
+
+#def new(config):
+    #return api(config) 

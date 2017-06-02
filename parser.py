@@ -1,63 +1,75 @@
-import signal, os
+import os, signal
 
 import argparse
 import configparser
 import datetime
 
+import multiprocessing 
+import logging
+import logging.handlers
+
 import diary
 import sheduler
-
-from time import sleep
-from urllib.parse import urlparse
-from urllib import parse
-
-class diary_list_task():
-    def __init__(self, offset):
-        self.offset = offset
-
-    def __str__(self):
-        return 'diary_list_task [ offset: {} ]'.format(self.offset)
-
-class diary_posts_task():
-    def __init__(self, url, begin, end):
-        self.url = url
-        self.begin = begin
-        self.end = end
-
-        u = urlparse(url)
-        domain = u.hostname
-        self.short_name = domain[:domain.find('.diary.ru')]
-
-    def __str__(self):
-        return 'diary_posts_task [ url: {}, begin: {}, end: {}, short_name: {} ]'.format(
-            self.url, self.begin, self.end, self.short_name)
+import tasks
 
 
-def diary_list_task_handler(task):
-    h = diary.html.new(None)
-    data = h.get_diary_list(task.offset)
+class dispatcher():
+    class api_context():
+        def __init__(self, config, begin, end):
+            self.begin = begin
+            self.end = end
 
-    tasks = []
-    if data['next']:
-        url = urlparse(data['next'])
-        query = parse.parse_qs(url.query)
-        if query.get('from'):
-            tasks.append(diary_list_task(query['from'][0]))
+            c = diary.api.credentials(
+                config['account']['username'],
+                config['account']['password'],
+                config['api']['public_key'],
+                config['api']['secret_key']
+            )
+            self.sid = diary.api.api.auth(c)
 
-    #for link in data['links']:
-        #tasks.append(diary_posts_task(link, 0, 0))
+        def __str__(self):
+            return 'dispatcher.api_context [ sid: {}, begin: {}, end: {} ]'.format(self.sid, self.begin, self.end)
 
-    return tasks
+    class file_context():
+        def __init__(self, tag):
+            self.tag = tag
 
-def diary_posts_task_handler(task):
-    api = diary.api.new(None)
-    data = h.get_diary_list(task.offset)
+        def __str__(self):
+            return 'dispatcher.file_context [ tag: {} ]'.format(self.tag)
+
+    def __init__(self, config, begin, end, logger_tag):
+        self.__config = config
+
+        self.__handlers = {
+            tasks.diary_posts.task: tasks.diary_posts.handler,
+            tasks.file_writer.task: tasks.file_writer.handler
+        }
+
+        self.__contexts = {
+            tasks.diary_posts.task: dispatcher.api_context(config, begin, end),
+            tasks.file_writer.task: dispatcher.file_context(logger_tag)
+        }
+
+    def __call__(self, task):
+        # call handlers with specified context
+        return self.__handlers[task.__class__](task, self.__contexts[task.__class__])
+
+def get_start_task(begin, end):
+    return tasks.diary_posts.task(
+            1, 0, datetime.datetime.fromtimestamp(begin), datetime.datetime.fromtimestamp(end))
+
+def handler_wrapper(s, l):
+    def handler(signum, frame):
+        print('Signal handler called with signal', signum)
+        s.stop()
+        l.stop()
+    return handler
 
 def main():
     parser = argparse.ArgumentParser(description='diar.ru post parser')
     parser.add_argument('-c', '--config', required=True, help='path to config file')
-    #parser.add_argument('-b', '--begin', required=True, help='begin date range')
-    #parser.add_argument('-e', '--end', required=True, help='end date range')
+    parser.add_argument('-b', '--begin', type=int, required=True, help='begin date range')
+    parser.add_argument('-e', '--end', type=int, required=True, help='end date range')
 
     args = parser.parse_args()
     if args.config is None:
@@ -66,21 +78,46 @@ def main():
 
     config = configparser.ConfigParser()
     if config.read(args.config, encoding='utf-8') is None:
-        print ('can\'t load config file, path: {}'.format(args.config))
-        sys.exit(-1)
+        raise RuntimeError('can\'t load config file, path: {}'.format(args.config))
 
-    #api = diary.api.new(config)
-    #if not api.auth():
-        #sys.exit(-1)
-    #api.posts()
+    try:
+        #original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    dispatcher = {
-        diary_list_task: diary_list_task_handler,
-    }
+        #create logger writer process
+        logger = sheduler.logger.new(
+                config['output']['tag'],
+                config['output']['file'])
 
-    s = sheduler.mnager.new(4, sheduler.task_queue.new(1), dispatcher)
-    s.add_task(diary_list_task(0))
-    s.run()
+        #make logger writer callable config
+        logger_config = logger.get_client_config()
+
+        #apply logger config for main process
+        #logger_config()
+
+        #create task eval context
+        router = dispatcher(config, args.begin, args.end, logger_config.tag)
+
+        #creating task sheduller
+        s = sheduler.mnager.new(sheduler.task_queue.new(1), router)
+
+        #add start task to sheduller
+        s.add_task(get_start_task(args.begin, args.end))
+
+        #run logger writer process and sheduller
+        logger.run();
+        s.run(logger_config)
+
+        #signal.signal(signal.SIGINT, original_sigint_handler)
+        #signal.signal(signal.SIGINT, handler_wrapper(s, l))
+        #signal.signal(signal.SIGTERM, handler_wrapper(s, l))
+    except KeyboardInterrupt:
+        print("Caught KeyboardInterrupt, terminating workers")
+    else:
+        print("Normal termination")
+
+    #stop event loop for all child processes
+    s.stop()
+    logger.stop()
 
 if __name__ == '__main__':
     main()

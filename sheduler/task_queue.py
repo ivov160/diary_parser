@@ -1,11 +1,10 @@
 import os
 import queue
-# import multiprocessing
-# import multiprocessing.queues
 
+#simple wrapper over mem queue
+#needed for replacing implementation (example: redis queue)
 class task_queue:
     def __init__(self, timeout):
-        # self.__queue = multiprocessing.queues.Queue()
         self.__queue = queue.LifoQueue()
         self.__timeout = timeout
 

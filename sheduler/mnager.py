@@ -1,10 +1,11 @@
+import multiprocessing 
 from multiprocessing import Pool
 from time import sleep
 import os
 
 
 class manager:
-    def __init__(self, pool_size, queue, dispatcher):
+    def __init__(self, queue, dispatcher, pool_size):
         self.__pool_size = pool_size
         self.__pool = None
 
@@ -16,19 +17,20 @@ class manager:
 
         self.__dispatcher = dispatcher
     
-    def run(self):
+    def run(self, logger_config):
         if self.__pool == None:
-            self.__pool = Pool(self.__pool_size)
+            self.__pool = Pool(processes=self.__pool_size, initializer=manager.init_pool, initargs=[logger_config])
             self.__stoped = False
 
         while self.__stoped != True:
+            #print('shduler.mngr: stopped: {}'.format(self.__stoped))
             if self.__need_feed() and not self.__queue.empty():
                 task = self.__queue.pop();
                 if task != None:
                     #print('need_feed: {}, in_progress: {}'.format(self.__need_feed(), self.__in_progress))
                     self.__in_progress += 1
                     self.__pool.apply_async(
-                            manager.task_handler, (task, self.__dispatcher,),
+                            manager.task_handler, (task, self.__dispatcher, ),
                             callback=manager.pool_callback_wrapper(getattr(self, 'task_done')), 
                             error_callback=manager.pool_callback_wrapper(getattr(self, 'task_error')))
             else:
@@ -46,28 +48,33 @@ class manager:
         return self.__in_progress < self.__pool_size * self.__k
 
     @staticmethod
+    def init_pool(logger_config):
+        logger_config()
+
+    @staticmethod
     def task_handler(task,  dispatcher):
-        print('task_handler, result: {}'.format(task))
-        return dispatcher[task.__class__](task)
+        print('task_handler, task: {}'.format(task))
+        return dispatcher(task)
 
     @staticmethod
     def pool_callback_wrapper(method):
         def payload_function(result):
             return method(result)
-            #return m.task_done(result)
         return payload_function
 
     def task_done(self, result):
+        print('task_done')
         #print('task_done, result: {}'.format(result))
         self.__in_progress -= 1
 
-        for task in result:
-            print('task: {}'.format(task))
-            self.add_task(task)
+        if result:
+            for task in result:
+                #print('add new task: {}'.format(task))
+                self.add_task(task)
 
     def task_error(self, result):
         print('task_error, result: {}'.format(result))
         self.__in_progress -= 1
         
-def new(pool_size, queue, dispatcher):
-    return manager(pool_size, queue, dispatcher)
+def new(queue, dispatcher, pool_size=4):
+    return manager(queue, dispatcher, pool_size)
