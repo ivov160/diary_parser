@@ -1,7 +1,10 @@
 from multiprocessing import Pool
 import multiprocessing 
+
 import logging
 import logging.handlers
+
+import signal
 
 class logger_config(): 
     def __init__(self, queue, tag, file, configurator):
@@ -34,6 +37,7 @@ class logger():
 
     @staticmethod
     def log_writer_process(logger_config):
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         #call config, for configure logger for this process
         logger_config()
 
@@ -75,7 +79,7 @@ class logger():
     @staticmethod
     def server_configure(config):
         l = logging.getLogger(config.tag)
-        f = logging.Formatter('%(message)s,')
+        f = logging.Formatter(', %(message)s ')
         h = logging.handlers.WatchedFileHandler(config.file_name, 'w')
         h.setFormatter(f)
         l.addHandler(h)

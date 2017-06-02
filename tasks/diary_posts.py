@@ -16,7 +16,7 @@ class task():
 
 
 def handler(task, ctx):
-    print('diary_posts.handler, task: {}, ctx: ...'.format(task))
+    #print('diary_posts.handler, task: {}, ctx: ...'.format(task))
 
     result = []
     #too long fail sequence perhaps end

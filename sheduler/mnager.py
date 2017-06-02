@@ -1,7 +1,10 @@
 import multiprocessing 
 from multiprocessing import Pool
+
 from time import sleep
+
 import os
+import signal
 
 
 class manager:
@@ -22,9 +25,17 @@ class manager:
             self.__pool = Pool(processes=self.__pool_size, initializer=manager.init_pool, initargs=[logger_config])
             self.__stoped = False
 
-        while self.__stoped != True:
+        #counter for auto stopping
+        #reset if data exists
+        max_idle_counter = 10
+        idle_counter = 0
+        
+        while self.__stoped != True and idle_counter < max_idle_counter:
             #print('shduler.mngr: stopped: {}'.format(self.__stoped))
             if self.__need_feed() and not self.__queue.empty():
+                #reset idle, new data
+                idle_counter = 0
+
                 task = self.__queue.pop();
                 if task != None:
                     #print('need_feed: {}, in_progress: {}'.format(self.__need_feed(), self.__in_progress))
@@ -35,9 +46,16 @@ class manager:
                             error_callback=manager.pool_callback_wrapper(getattr(self, 'task_error')))
             else:
                 sleep(1)
+                if self.__queue.empty():
+                    idle_counter += 1
 
     def add_task(self, task):
         self.__queue.push(task)
+
+    def terminate(self):
+        self.__stoped = True
+        self.__pool.terminate()
+        self.__pool.join()
 
     def stop(self):
         self.__stoped = True
@@ -49,16 +67,17 @@ class manager:
 
     @staticmethod
     def init_pool(logger_config):
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         logger_config()
 
     @staticmethod
     def task_handler(task,  dispatcher):
         try:
-            print('task_handler, task: {}'.format(task))
+            #print('task_handler, task: {}'.format(task))
             return dispatcher(task)
         except Exception:
             import sys, traceback
-            print('exception:', file=sys.stderr)
+            print('task exception:', file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
 
     @staticmethod
@@ -68,7 +87,6 @@ class manager:
         return payload_function
 
     def task_done(self, result):
-        print('task_done')
         #print('task_done, result: {}'.format(result))
         self.__in_progress -= 1
 
@@ -81,5 +99,5 @@ class manager:
         print('task_error, result: {}'.format(result))
         self.__in_progress -= 1
         
-def new(queue, dispatcher, pool_size=16):
+def new(queue, dispatcher, pool_size=64):
     return manager(queue, dispatcher, pool_size)

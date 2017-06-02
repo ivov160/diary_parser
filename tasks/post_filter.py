@@ -14,7 +14,7 @@ class task():
 
 
 def handler(task, ctx):
-    print('post_filter.handler, task: {}, ctx: {} '.format(task, ctx))
+    #print('post_filter.handler, task: {}, ctx: {} '.format(task, ctx))
 
     result = []
     post = task.data

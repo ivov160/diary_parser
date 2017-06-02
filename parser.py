@@ -1,4 +1,4 @@
-import os, signal
+import os
 
 import argparse
 import configparser
@@ -11,7 +11,6 @@ import logging.handlers
 import diary
 import sheduler
 import tasks
-
 
 class dispatcher():
     class api_context():
@@ -68,12 +67,15 @@ class dispatcher():
 def get_start_task():
     return tasks.diary_posts.task(1)
 
-def handler_wrapper(s, l):
-    def handler(signum, frame):
-        print('Signal handler called with signal', signum)
-        s.stop()
-        l.stop()
-    return handler
+def fix_json_file(file_name):
+    file = open(file_name, 'r+')
+    if file:
+        file.seek(0, 2)
+        if file.tell() > 0:
+            file.write(']')
+            file.seek(0, 0)
+            file.write('[')
+            file.close()
 
 def main():
     parser = argparse.ArgumentParser(description='diar.ru post parser')
@@ -91,8 +93,6 @@ def main():
         raise RuntimeError('can\'t load config file, path: {}'.format(args.config))
 
     try:
-        #original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
-
         #create logger writer process
         logger = sheduler.logger.new(
                 config['output']['tag'],
@@ -108,7 +108,8 @@ def main():
         router = dispatcher(config, args.begin, args.end, logger_config.tag)
 
         #creating task sheduller
-        s = sheduler.mnager.new(sheduler.task_queue.new(1), router, 1)
+        #s = sheduler.mnager.new(sheduler.task_queue.new(1), router, 1)
+        s = sheduler.mnager.new(sheduler.task_queue.new(1), router)
 
         #add start task to sheduller
         s.add_task(get_start_task())
@@ -116,18 +117,16 @@ def main():
         #run logger writer process and sheduller
         logger.run();
         s.run(logger_config)
-
-        #signal.signal(signal.SIGINT, original_sigint_handler)
-        #signal.signal(signal.SIGINT, handler_wrapper(s, l))
-        #signal.signal(signal.SIGTERM, handler_wrapper(s, l))
     except KeyboardInterrupt:
-        print("Caught KeyboardInterrupt, terminating workers")
+        print('Caught KeyboardInterrupt, terminating workers')
+        s.terminate()
     else:
-        print("Normal termination")
+        print('Quitting normally')
+        s.stop()
 
     #stop event loop for all child processes
-    s.stop()
     logger.stop()
+    fix_json_file(logger_config.file_name)
 
 if __name__ == '__main__':
     main()

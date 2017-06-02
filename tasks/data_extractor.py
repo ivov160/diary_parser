@@ -9,7 +9,7 @@ class task():
         return 'data_extractor.task [ data: ... ]'
 
 def handler(task, ctx):
-    print('data_extractor.handler, task: ..., ctx: ...')
+    #print('data_extractor.handler, task: ..., ctx: ...')
 
     result = []
     post = task.data
