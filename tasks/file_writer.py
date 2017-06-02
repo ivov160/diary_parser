@@ -13,11 +13,8 @@ class task():
 
 def handler(task, ctx):
     print('file_writer.handler, task: ..., ctx: ...')
-    try:
-        logger = logging.getLogger(ctx.tag)
-        logger.log(logging.INFO, json.dumps(task.data))
-    except (RuntimeError, TypeError, NameError) as err:
-        print('catched: {}'.format(err))
+    logger = logging.getLogger(ctx.tag)
+    logger.log(logging.INFO, json.dumps(task.data))
 
             
 

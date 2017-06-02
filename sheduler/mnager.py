@@ -13,7 +13,7 @@ class manager:
         self.__queue = queue
 
         self.__stoped = True
-        self.__k = 2
+        self.__k = 16
 
         self.__dispatcher = dispatcher
     
@@ -53,8 +53,13 @@ class manager:
 
     @staticmethod
     def task_handler(task,  dispatcher):
-        print('task_handler, task: {}'.format(task))
-        return dispatcher(task)
+        try:
+            print('task_handler, task: {}'.format(task))
+            return dispatcher(task)
+        except Exception:
+            import sys, traceback
+            print('exception:', file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
     @staticmethod
     def pool_callback_wrapper(method):
@@ -76,5 +81,5 @@ class manager:
         print('task_error, result: {}'.format(result))
         self.__in_progress -= 1
         
-def new(queue, dispatcher, pool_size=4):
+def new(queue, dispatcher, pool_size=16):
     return manager(queue, dispatcher, pool_size)

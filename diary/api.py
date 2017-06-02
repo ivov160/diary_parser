@@ -61,7 +61,7 @@ class api:
             'type': 'diary',
             'juserid': user_id,
             'from': offset,
-            'fields': 'postid,title,juserid,jaccess,dateline_date,message_html'
+            #'fields': 'postid,title,juserid,jaccess,dateline_date,message_html'
         }
         r = requests.get(api.endpoint, params)
 
@@ -75,13 +75,3 @@ class api:
             code = int(r['result']) 
         return code
 
-        #r = requests.get(self.endpoint, params)
-        #response = r.json()
-        ##response = r.text
-
-        #return response
-        #print(response)
-        #print('{}'.format(response))
-
-#def new(config):
-    #return api(config) 

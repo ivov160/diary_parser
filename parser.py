@@ -15,10 +15,7 @@ import tasks
 
 class dispatcher():
     class api_context():
-        def __init__(self, config, begin, end):
-            self.begin = begin
-            self.end = end
-
+        def __init__(self, config):
             c = diary.api.credentials(
                 config['account']['username'],
                 config['account']['password'],
@@ -26,9 +23,10 @@ class dispatcher():
                 config['api']['secret_key']
             )
             self.sid = diary.api.api.auth(c)
+            self.fail_count = int(config['api']['fail_count'])
 
         def __str__(self):
-            return 'dispatcher.api_context [ sid: {}, begin: {}, end: {} ]'.format(self.sid, self.begin, self.end)
+            return 'dispatcher.api_context [ sid: {}, max_fails: {} ]'.format(self.sid, self.fail_count)
 
     class file_context():
         def __init__(self, tag):
@@ -37,16 +35,29 @@ class dispatcher():
         def __str__(self):
             return 'dispatcher.file_context [ tag: {} ]'.format(self.tag)
 
+    class filter_context():
+        def __init__(self, begin, end, access=0):
+            self.begin = begin
+            self.end = end
+            self.access = access
+
+        def __str__(self):
+            return 'dispatcher.filter_context [ begin: {}, end: {}, access: {} ]'.format(self.begin, self.end, self.access)
+
     def __init__(self, config, begin, end, logger_tag):
         self.__config = config
 
         self.__handlers = {
             tasks.diary_posts.task: tasks.diary_posts.handler,
+            tasks.post_filter.task: tasks.post_filter.handler,
+            tasks.data_extractor.task: tasks.data_extractor.handler,
             tasks.file_writer.task: tasks.file_writer.handler
         }
 
         self.__contexts = {
-            tasks.diary_posts.task: dispatcher.api_context(config, begin, end),
+            tasks.diary_posts.task: dispatcher.api_context(config),
+            tasks.post_filter.task: dispatcher.filter_context(begin, end),
+            tasks.data_extractor.task: None,
             tasks.file_writer.task: dispatcher.file_context(logger_tag)
         }
 
@@ -54,9 +65,8 @@ class dispatcher():
         # call handlers with specified context
         return self.__handlers[task.__class__](task, self.__contexts[task.__class__])
 
-def get_start_task(begin, end):
-    return tasks.diary_posts.task(
-            1, 0, datetime.datetime.fromtimestamp(begin), datetime.datetime.fromtimestamp(end))
+def get_start_task():
+    return tasks.diary_posts.task(1)
 
 def handler_wrapper(s, l):
     def handler(signum, frame):
@@ -98,10 +108,10 @@ def main():
         router = dispatcher(config, args.begin, args.end, logger_config.tag)
 
         #creating task sheduller
-        s = sheduler.mnager.new(sheduler.task_queue.new(1), router)
+        s = sheduler.mnager.new(sheduler.task_queue.new(1), router, 1)
 
         #add start task to sheduller
-        s.add_task(get_start_task(args.begin, args.end))
+        s.add_task(get_start_task())
 
         #run logger writer process and sheduller
         logger.run();
