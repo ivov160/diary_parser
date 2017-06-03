@@ -45,6 +45,8 @@ class manager:
                             callback=manager.pool_callback_wrapper(getattr(self, 'task_done')), 
                             error_callback=manager.pool_callback_wrapper(getattr(self, 'task_error')))
             else:
+                self.__dispatcher.idle()
+
                 sleep(1)
                 if self.__queue.empty():
                     idle_counter += 1
